@@ -45,7 +45,17 @@ public class ApplicationUser {
     )
     private Set<Role> authorities;
 
+    private Boolean enable;
+
+    @Column(nullable = true)
+    @JsonIgnore
+    private Long verification;
+
+
     public ApplicationUser() {
         this.authorities = new HashSet<>();
+        this.enable = false;
     }
+
+
 }

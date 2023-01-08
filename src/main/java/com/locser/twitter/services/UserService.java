@@ -1,6 +1,8 @@
 package com.locser.twitter.services;
 
 import com.locser.twitter.exception.EmailAlreadyTakenException;
+import com.locser.twitter.exception.EmailFailToSendException;
+import com.locser.twitter.exception.UserDoesNotExistException;
 import com.locser.twitter.models.ApplicationUser;
 import com.locser.twitter.models.RegisterObject;
 import com.locser.twitter.models.Role;
@@ -15,11 +17,13 @@ import java.util.Set;
 public class UserService {
     private final UserRepository userRepo;
     private final RoleRepository roleRepo;
+    private final MailService mailService;
 
     @Autowired
-    public UserService(UserRepository userRepo, RoleRepository roleRepo) {
+    public UserService(UserRepository userRepo, RoleRepository roleRepo, MailService mailService) {
         this.userRepo = userRepo;
         this.roleRepo = roleRepo;
+        this.mailService = mailService;
     }
 
     public ApplicationUser registerUser(RegisterObject registerObject) {
@@ -33,14 +37,14 @@ public class UserService {
 
         String name = user.getFirstName() + user.getLastName();
 
-        boolean nameTaken =  true;
+        boolean nameTaken = true;
 
         String tempName = "";
 
         while (nameTaken) {
             tempName = generateUserName(name);
 
-            if(userRepo.findByUsername(tempName).isEmpty()){
+            if (userRepo.findByUsername(tempName).isEmpty()) {
                 nameTaken = false;
             }
         }
@@ -52,16 +56,50 @@ public class UserService {
         roles.add(roleRepo.findByAuthority("USER").get());
         user.setAuthorities(roles);
 
-        try{
+        try {
             return userRepo.save(user);
-        }catch (Exception e ) {
+        } catch (Exception e) {
             throw new EmailAlreadyTakenException();
         }
 
     }
 
-    private String generateUserName(String name){
+    public ApplicationUser getUserByUserName(String userName) {
+        return userRepo.findByUsername(userName).orElseThrow(UserDoesNotExistException::new);
+    }
+
+    public ApplicationUser updateUser(ApplicationUser user) {
+        try {
+            return userRepo.save(user);
+        } catch (Exception e) {
+            throw new UserDoesNotExistException();
+        }
+    }
+
+
+
+    private String generateUserName(String name) {
         long generatedNumber = (long) Math.floor(Math.random() * 1_000_000_000);
         return name + generatedNumber;
+    }
+
+    public void generateEmailVerification(String username) {
+
+        ApplicationUser user =  userRepo.findByUsername(username).orElseThrow(UserDoesNotExistException:: new);
+
+        user.setVerification(generateVerificationNumber());
+        try {
+
+            mailService.sendEmail(user.getEmail(), "Your vertification code", "Here is your verification code: " + user.getVerification());
+            userRepo.save(user);
+        }catch (Exception e ){
+            throw new EmailFailToSendException();
+        }
+
+        userRepo.save(user);
+    }
+
+    private Long generateVerificationNumber() {
+        return (long) Math.floor(Math.random() *100_000_000);
     }
 }
