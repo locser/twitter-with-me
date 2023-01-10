@@ -2,6 +2,7 @@ package com.locser.twitter.controllers;
 
 import com.locser.twitter.exception.EmailAlreadyTakenException;
 import com.locser.twitter.exception.EmailFailToSendException;
+import com.locser.twitter.exception.IncorrectVerificationCodeException;
 import com.locser.twitter.exception.UserDoesNotExistException;
 import com.locser.twitter.models.ApplicationUser;
 import com.locser.twitter.models.RegisterObject;
@@ -47,6 +48,13 @@ public class AuthenticationController {
         return new ResponseEntity<String>("The user you looking for does not exist!",HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler({
+            IncorrectVerificationCodeException.class
+    })
+    public ResponseEntity<String> handleIncorrectCode() {
+        return new ResponseEntity<String>("The code provided does not match the user code",HttpStatus.CONFLICT);
+    }
+
     //go to localhost/auth/register
     @PostMapping("/register")
     public ApplicationUser registerUser(@RequestBody RegisterObject registerObject) {
@@ -70,6 +78,24 @@ public class AuthenticationController {
 
         return new ResponseEntity<String>("Verification code generated, email sent", HttpStatus.OK);
 
+    }
+
+    @PostMapping("/email/verify")
+    public ApplicationUser verifyEmail(@RequestBody LinkedHashMap<String, String> body) {
+
+        Long code = Long.parseLong(body.get("code"));
+
+        String userName = body.get("username");
+
+        return userService.verifyEmail(userName, code);
+    }
+
+    @PutMapping("/update/password")
+    public ApplicationUser updatePassword(@RequestBody LinkedHashMap<String , String > body){
+        String username = body.get("username");
+        String password = body.get("password");
+
+        return userService.setPassword(username, password);
     }
 
 }
